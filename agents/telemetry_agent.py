@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from utils.validators import validate_telemetry
 
+
 class TelemetryAgent:
 
     def run(self):
@@ -9,11 +10,15 @@ class TelemetryAgent:
 
         file = st.file_uploader("Upload CSV Telemetry", type=["csv"])
 
-        if not file:
+        if file is None:
             st.warning("Upload telemetry CSV to proceed.")
             return
 
-        df = pd.read_csv(file)
+        try:
+            df = pd.read_csv(file)
+        except Exception as e:
+            st.error(f"Failed to read CSV: {e}")
+            return
 
         valid, msg = validate_telemetry(df)
         if not valid:
@@ -23,15 +28,18 @@ class TelemetryAgent:
         insights, warnings, recs = self.analyze(df)
 
         st.subheader("Insights")
-        st.write(insights)
+        for i in insights:
+            st.write(f"- {i}")
 
         st.subheader("Warnings")
-        st.write(warnings)
+        for w in warnings:
+            st.write(f"- {w}")
 
         st.subheader("Recommendations")
-        st.write(recs)
+        for r in recs:
+            st.write(f"- {r}")
 
-     def analyze(self, df):
+    def analyze(self, df):
         insights = []
         warnings = []
         recs = []
@@ -42,7 +50,9 @@ class TelemetryAgent:
             insights.append(f"Throttle-speed correlation: {corr:.2f}")
 
             if corr < 0.6:
-                recs.append("Throttle application is not efficiently translating into speed. Review traction and power delivery.")
+                recs.append(
+                    "Throttle application is not efficiently translating into speed. Review traction and power delivery."
+                )
 
         # --- Braking ---
         if "brake" in df.columns:
@@ -51,9 +61,13 @@ class TelemetryAgent:
             warnings.append(f"High braking events: {hard_brakes}")
 
             if hard_brakes > len(df) * 0.15:
-                recs.append("Frequent aggressive braking detected. Consider optimizing braking zones and trail braking technique.")
+                recs.append(
+                    "Frequent aggressive braking detected. Optimize braking zones and trail braking."
+                )
             else:
-                recs.append("Braking is generally controlled. Fine-tune entry speeds for marginal gains.")
+                recs.append(
+                    "Braking is controlled. Fine-tune entry speeds for marginal gains."
+                )
 
         # --- Throttle smoothness ---
         if "throttle" in df.columns:
@@ -63,21 +77,27 @@ class TelemetryAgent:
             insights.append(f"Throttle smoothness score: {smoothness:.3f}")
 
             if smoothness > std:
-                recs.append("Throttle inputs are too abrupt. Improve modulation for better traction.")
+                recs.append(
+                    "Throttle inputs are abrupt. Improve modulation for better traction."
+                )
             else:
-                recs.append("Throttle control is smooth. You can push more aggressively on corner exits.")
+                recs.append(
+                    "Throttle control is smooth. You can push harder on corner exits."
+                )
 
-        # --- Temperature analysis ---
+        # --- Temperature ---
         if "engine_temp" in df.columns:
             max_temp = df["engine_temp"].max()
             insights.append(f"Max engine temp: {max_temp}")
 
             if max_temp > df["engine_temp"].mean() * 1.1:
                 warnings.append("Engine temperature spike detected.")
-                recs.append("Review cooling efficiency or airflow management.")
+                recs.append("Check cooling system or airflow.")
 
-        # --- Guarantee output ---
+        # --- Fallback ---
         if len(recs) == 0:
-            recs.append("No major issues detected. Focus on incremental improvements in consistency and lap optimization.")
+            recs.append(
+                "No major issues detected. Focus on consistency and lap time optimization."
+            )
 
         return insights, warnings, recs
