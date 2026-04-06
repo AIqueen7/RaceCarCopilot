@@ -9,12 +9,13 @@ from agents.copilot_agent import CopilotAgent
 st.set_page_config(page_title="AI Race Copilot", layout="wide")
 
 # Initialize agents
-telemetry_agent = TelemetryAgent()
 setup_agent = SetupAgent()
 strategy_agent = StrategyAgent()
 document_agent = DocumentAgent()
 maintenance_agent = MaintenanceAgent()
 copilot_agent = CopilotAgent()
+
+
 
 st.sidebar.title("🏎️ Race Copilot")
 page = st.sidebar.radio("Navigation", [
@@ -27,7 +28,12 @@ page = st.sidebar.radio("Navigation", [
     "Reports"
 ])
 
-if page == "Telemetry Agent":
+uploaded_file = st.file_uploader("Upload telemetry CSV", type=["csv"])
+
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+
+    telemetry_agent = TelemetryAgent(df)
     telemetry_agent.run()
 
 elif page == "Setup Agent":
