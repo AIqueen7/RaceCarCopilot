@@ -40,7 +40,25 @@ class TelemetryAgent:
         st.subheader("Recommendations")
         for r in recs:
             st.write(f"- {r}")
-
+    def plot_telemetry(df):
+    
+        fig1, ax1 = plt.subplots()
+        ax1.plot(df["time"], df["speed"])
+        ax1.set_title("Speed vs Time")
+        st.pyplot(fig1)
+    
+        fig2, ax2 = plt.subplots()
+        ax2.plot(df["time"], df["throttle"], label="Throttle")
+        ax2.plot(df["time"], df["brake"], label="Brake")
+        ax2.legend()
+        ax2.set_title("Throttle vs Brake")
+        st.pyplot(fig2)
+    
+        if "engine_temp" in df.columns:
+            fig3, ax3 = plt.subplots()
+            ax3.plot(df["time"], df["engine_temp"])
+            ax3.set_title("Engine Temperature Trend")
+            st.pyplot(fig3)
     def analyze(self, df):
         insights = []
         warnings = []
@@ -101,23 +119,5 @@ class TelemetryAgent:
             recs.append(
                 "No major issues detected. Focus on consistency and lap time optimization."
             )
-    def plot_telemetry(df):
-    
-        fig1, ax1 = plt.subplots()
-        ax1.plot(df["time"], df["speed"])
-        ax1.set_title("Speed vs Time")
-        st.pyplot(fig1)
-    
-        fig2, ax2 = plt.subplots()
-        ax2.plot(df["time"], df["throttle"], label="Throttle")
-        ax2.plot(df["time"], df["brake"], label="Brake")
-        ax2.legend()
-        ax2.set_title("Throttle vs Brake")
-        st.pyplot(fig2)
-    
-        if "engine_temp" in df.columns:
-            fig3, ax3 = plt.subplots()
-            ax3.plot(df["time"], df["engine_temp"])
-            ax3.set_title("Engine Temperature Trend")
-            st.pyplot(fig3)
+
         return insights, warnings, recs
