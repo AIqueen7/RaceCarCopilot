@@ -5,4 +5,3 @@ scikit-learn
 sentence-transformers
 matplotlib
 faiss-cpu
-plotly
