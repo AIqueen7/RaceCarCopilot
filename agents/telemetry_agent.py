@@ -6,7 +6,8 @@ from utils.validators import validate_telemetry
 
 
 class TelemetryAgent:
-
+    import matplotlib.pyplot as plt
+    import streamlit as st
     def run(self):
         st.title("📊 Telemetry Agent")
 
