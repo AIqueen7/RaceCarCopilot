@@ -121,4 +121,4 @@ class TelemetryAgent:
                 "No major issues detected. Focus on consistency and lap time optimization."
             )
 
-        return insights, warnings, recs, self.plot_telemetry(df)
+        return insights, warnings, recs = self.analyze(df), self.plot_telemetry(df)
