@@ -1,124 +1,94 @@
-import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+import numpy as np
 import streamlit as st
-from utils.validators import validate_telemetry
+import plotly.graph_objects as go
 
 
 class TelemetryAgent:
-    import matplotlib.pyplot as plt
-    import streamlit as st
+    def __init__(self, df: pd.DataFrame):
+        self.df = df
+
     def run(self):
-        st.title("📊 Telemetry Agent")
+        st.title("🏎️ Telemetry Intelligence Dashboard")
 
-        file = st.file_uploader("Upload CSV Telemetry", type=["csv"])
-
-        if file is None:
-            st.warning("Upload telemetry CSV to proceed.")
+        if self.df is None or self.df.empty:
+            st.warning("No telemetry data loaded.")
             return
 
-        try:
-            df = pd.read_csv(file)
-        except Exception as e:
-            st.error(f"Failed to read CSV: {e}")
-            return
+        self.clean_data()
+        insights, warnings, recs = self.analyze(self.df)
 
-        valid, msg = validate_telemetry(df)
-        if not valid:
-            st.error(msg)
-            return
+        self.render_summary(insights, warnings, recs)
+        self.render_graphs()
 
-        insights, warnings, recs = self.analyze(df)
+    def clean_data(self):
+        self.df = self.df.copy()
 
-        st.subheader("Insights")
-        for i in insights:
-            st.write(f"- {i}")
+        # normalize column names
+        self.df.columns = [c.strip().lower() for c in self.df.columns]
 
-        st.subheader("Warnings")
-        for w in warnings:
-            st.write(f"- {w}")
+        # common safety fill
+        self.df = self.df.replace([np.inf, -np.inf], np.nan)
+        self.df = self.df.fillna(method="ffill")
 
-        st.subheader("Recommendations")
-        for r in recs:
-            st.write(f"- {r}")
-    def plot_telemetry(df):
-    
-        fig1, ax1 = plt.subplots()
-        ax1.plot(df["time"], df["speed"])
-        ax1.set_title("Speed vs Time")
-        st.pyplot(fig1)
-    
-        fig2, ax2 = plt.subplots()
-        ax2.plot(df["time"], df["throttle"], label="Throttle")
-        ax2.plot(df["time"], df["brake"], label="Brake")
-        ax2.legend()
-        ax2.set_title("Throttle vs Brake")
-        st.pyplot(fig2)
-    
-        if "engine_temp" in df.columns:
-            fig3, ax3 = plt.subplots()
-            ax3.plot(df["time"], df["engine_temp"])
-            ax3.set_title("Engine Temperature Trend")
-            st.pyplot(fig3)
     def analyze(self, df):
         insights = []
         warnings = []
         recs = []
 
-        # --- Correlation ---
-        if "speed" in df.columns and "throttle" in df.columns:
-            corr = df["speed"].corr(df["throttle"])
-            insights.append(f"Throttle-speed correlation: {corr:.2f}")
+        if "speed" in df.columns:
+            insights.append(f"Max speed: {df['speed'].max():.2f}")
+            if df["speed"].max() > 300:
+                warnings.append("Very high speed detected")
+                recs.append("Check aerodynamics setup")
 
-            if corr < 0.6:
-                recs.append(
-                    "Throttle application is not efficiently translating into speed. Review traction and power delivery."
-                )
+        if "throttle" in df.columns and "brake" in df.columns:
+            overlap = ((df["throttle"] > 0) & (df["brake"] > 0)).sum()
+            if overlap > 0:
+                warnings.append("Throttle + brake overlap detected")
+                recs.append("Adjust pedal mapping / driver input smoothing")
 
-        # --- Braking ---
-        if "brake" in df.columns:
-            threshold = df["brake"].quantile(0.9)
-            hard_brakes = (df["brake"] > threshold).sum()
-            warnings.append(f"High braking events: {hard_brakes}")
+        if not warnings:
+            warnings.append("No critical issues detected")
 
-            if hard_brakes > len(df) * 0.15:
-                recs.append(
-                    "Frequent aggressive braking detected. Optimize braking zones and trail braking."
-                )
-            else:
-                recs.append(
-                    "Braking is controlled. Fine-tune entry speeds for marginal gains."
-                )
+        return insights, warnings, recs
 
-        # --- Throttle smoothness ---
-        if "throttle" in df.columns:
-            smoothness = df["throttle"].diff().abs().mean()
-            std = df["throttle"].std()
+    def render_summary(self, insights, warnings, recs):
+        col1, col2, col3 = st.columns(3)
 
-            insights.append(f"Throttle smoothness score: {smoothness:.3f}")
+        with col1:
+            st.metric("Insights", len(insights))
+            for i in insights:
+                st.write("•", i)
 
-            if smoothness > std:
-                recs.append(
-                    "Throttle inputs are abrupt. Improve modulation for better traction."
-                )
-            else:
-                recs.append(
-                    "Throttle control is smooth. You can push harder on corner exits."
-                )
+        with col2:
+            st.metric("Warnings", len(warnings))
+            for w in warnings:
+                st.write("⚠️", w)
 
-        # --- Temperature ---
-        if "engine_temp" in df.columns:
-            max_temp = df["engine_temp"].max()
-            insights.append(f"Max engine temp: {max_temp}")
+        with col3:
+            st.metric("Recommendations", len(recs))
+            for r in recs:
+                st.write("💡", r)
 
-            if max_temp > df["engine_temp"].mean() * 1.1:
-                warnings.append("Engine temperature spike detected.")
-                recs.append("Check cooling system or airflow.")
+    def render_graphs(self):
+        st.subheader("📊 Telemetry Graphs")
 
-        # --- Fallback ---
-        if len(recs) == 0:
-            recs.append(
-                "No major issues detected. Focus on consistency and lap time optimization."
-            )
+        # SPEED GRAPH
+        if "speed" in self.df.columns:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                y=self.df["speed"],
+                mode="lines",
+                name="Speed"
+            ))
+            fig.update_layout(title="Speed Over Time")
+            st.plotly_chart(fig, use_container_width=True)
 
-        return insights, warnings, recs = self.analyze(df), self.plot_telemetry(df)
+        # THROTTLE vs BRAKE
+        if "throttle" in self.df.columns and "brake" in self.df.columns:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(y=self.df["throttle"], name="Throttle"))
+            fig.add_trace(go.Scatter(y=self.df["brake"], name="Brake"))
+            fig.update_layout(title="Throttle vs Brake")
+            st.plotly_chart(fig, use_container_width=True)
